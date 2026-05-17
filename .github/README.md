@@ -290,8 +290,8 @@ This project was inspired by [someshkar/whois-api](https://github.com/someshkar/
         </a>
     </td>
     <td align="center">
-        <a href="https://github.com/Lissy93">
-            <img src="https://avatars.githubusercontent.com/u/1862727?v=4" width="80;" alt="Lissy93"/>
+        <a href="https://github.com/lissy93">
+            <img src="https://avatars.githubusercontent.com/u/1862727?v=4" width="80;" alt="lissy93"/>
             <br />
             <sub><b>Alicia Sykes</b></sub>
         </a>
@@ -334,7 +334,7 @@ This project was inspired by [someshkar/whois-api](https://github.com/someshkar/
     </td>
     <td align="center">
         <a href="https://github.com/BrunoBernardino">
-            <img src="https://avatars.githubusercontent.com/u/1239616?v=4" width="80;" alt="BrunoBernardino"/>
+            <img src="https://avatars.githubusercontent.com/u/1239616?u=6a9bfea14526fc6c7e36997db2cf8a875c426250&v=4" width="80;" alt="BrunoBernardino"/>
             <br />
             <sub><b>Bruno Bernardino</b></sub>
         </a>
@@ -355,7 +355,7 @@ This project was inspired by [someshkar/whois-api](https://github.com/someshkar/
     </td>
     <td align="center">
         <a href="https://github.com/nrjohnstone">
-            <img src="https://avatars.githubusercontent.com/u/6700819?v=4" width="80;" alt="nrjohnstone"/>
+            <img src="https://avatars.githubusercontent.com/u/6700819?u=69bacb0992f954b8ae8845228726c9f24b6ebff1&v=4" width="80;" alt="nrjohnstone"/>
             <br />
             <sub><b>Nathan Johnstone</b></sub>
         </a>
@@ -376,17 +376,10 @@ This project was inspired by [someshkar/whois-api](https://github.com/someshkar/
         </a>
     </td>
     <td align="center">
-        <a href="https://github.com/bmcgonag">
-            <img src="https://avatars.githubusercontent.com/u/7346620?u=2a0f9284f3e12ac1cc15288c254d1ec68a5081e8&v=4" width="80;" alt="bmcgonag"/>
-            <br />
-            <sub><b>Brian McGonagill</b></sub>
-        </a>
-    </td>
-    <td align="center">
         <a href="https://github.com/elvito">
             <img src="https://avatars.githubusercontent.com/u/9715912?v=4" width="80;" alt="elvito"/>
             <br />
-            <sub><b>elvito</b></sub>
+            <sub><b>Elvito</b></sub>
         </a>
     </td>
     <td align="center">
@@ -409,15 +402,15 @@ This project was inspired by [someshkar/whois-api](https://github.com/someshkar/
             <br />
             <sub><b>Daechler</b></sub>
         </a>
-    </td></tr>
-<tr>
+    </td>
     <td align="center">
         <a href="https://github.com/getumbrel">
             <img src="https://avatars.githubusercontent.com/u/59408891?v=4" width="80;" alt="getumbrel"/>
             <br />
             <sub><b>Umbrel</b></sub>
         </a>
-    </td>
+    </td></tr>
+<tr>
     <td align="center">
         <a href="https://github.com/ssdnodes">
             <img src="https://avatars.githubusercontent.com/u/66710902?v=4" width="80;" alt="ssdnodes"/>
@@ -452,15 +445,15 @@ This project was inspired by [someshkar/whois-api](https://github.com/someshkar/
             <br />
             <sub><b>Michael Perron</b></sub>
         </a>
-    </td></tr>
-<tr>
+    </td>
     <td align="center">
         <a href="https://github.com/hudsonrock-partnerships">
             <img src="https://avatars.githubusercontent.com/u/163282900?u=5f2667f7fe5d284ac7a2da6b0800ea8970b0fcbf&v=4" width="80;" alt="hudsonrock-partnerships"/>
             <br />
             <sub><b>Hudsonrock-partnerships</b></sub>
         </a>
-    </td>
+    </td></tr>
+<tr>
     <td align="center">
         <a href="https://github.com/crmzx8">
             <img src="https://avatars.githubusercontent.com/u/170860426?u=43694046c9b5a99a3014369b22cc48815b07b457&v=4" width="80;" alt="crmzx8"/>
