@@ -38,7 +38,7 @@
 
 > **TL;DR** Get the WHOIS records for a site: `curl https://who-dat.as93.net/example.com`
 
-For detailed request + response schemas, and to try the API out, you can reference the [spec](https://who-dat.as93.net/docs.html)
+Who-Dat queries [RDAP](https://en.wikipedia.org/wiki/Registration_Data_Access_Protocol) where available and falls back to WHOIS, returning a single, consistent, normalized JSON shape for every TLD. For detailed request + response schemas, and to try the API out, you can reference the [spec](https://who-dat.as93.net/docs)
 
 ### Base URL
 
@@ -51,17 +51,17 @@ If you're self-hosting (recommended) then replace this with your own base URL.
 <details>
   <summary><h4>Single Domain Lookup <code>/[domain]</code></h4></summary>
 
-- **URL**: `/[domain]`
+- **URL**: `/v1/whois/[domain]` (the bare `/[domain]` shorthand also works)
 - **Method**: `GET`
-- **URL Params**: None
+- **Query Params**: `?raw=true` returns the original RDAP JSON or WHOIS text instead of the normalized response
 - **Success Response**:
-  - **Code**: 200
-  - **Content**: WHOIS data for the specified domain in JSON format.
-- **Error Response**:
-  - **Code**: 400 BAD REQUEST
-  - **Content**: `{ "error": "Domain not specified" }`
-  - **Code**: 404 NOT FOUND
-  - **Content**: `{ "error": "Domain not found" }`
+  - **Code**: 200 (the lookup succeeded, whether or not the domain is registered)
+  - **Content**: Normalized WHOIS/RDAP data as JSON; the `isRegistered` field indicates registration status.
+- **Error Response** (uniform envelope: `{ "error": { "code", "message", "query" } }`):
+  - **400** - invalid or unparseable domain
+  - **429** - rate limited (includes a `Retry-After` header)
+  - **501** - no RDAP or WHOIS source for that TLD
+  - **502** / **504** - upstream registry error or timeout
 - **Sample Call**:
 
 ##### Command Line
@@ -102,12 +102,10 @@ else:
   - **domains**: A comma-separated list of domains.
 - **Success Response**:
   - **Code**: 200
-  - **Content**: Array of WHOIS data for the specified domains in JSON format.
+  - **Content**: `{ "results": [ ... ] }` - an array of normalized results, one per domain.
 - **Error Response**:
   - **Code**: 400 BAD REQUEST
-  - **Content**: `{ "error": "No domains specified" }`
-  - **Code**: 500 INTERNAL SERVER ERROR
-  - **Content**: `{ "error": "[error message]" }`
+  - **Content**: `{ "error": { "code": "INVALID_DOMAIN", "message": "missing domains parameter" } }`
 - **Sample Call**:
 
 ```
@@ -116,7 +114,7 @@ curl "https://who-dat.as93.net/multi?domains=example.com,example.net"
 
 </details>
 
-[![Who-Dat Swagger Docs](https://img.shields.io/badge/Swagger-Docs-85EA2D?style=for-the-badge&logo=swagger&labelColor=1b2744&link=https%3A%2F%2Fwho-dat.as93.net%2Fdocs.html)](https://who-dat.as93.net/docs.html)
+[![Who-Dat API Docs](https://img.shields.io/badge/API-Docs-85EA2D?style=for-the-badge&logo=openapiinitiative&labelColor=1b2744&link=https%3A%2F%2Fwho-dat.as93.net%2Fdocs)](https://who-dat.as93.net/docs)
 
 
 ---
@@ -129,7 +127,7 @@ This is the quickest and easiest way to get up-and-running. Simply fork the repo
 
 Alternatively, just hit the button below for 1-click deploy 👇
 
-[![1-Click Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-ffffff?style=for-the-badge&logo=vercel&labelColor=1b2744&link=https%3A%2F%2Fwho-dat.as93.net%2Fdocs.html)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Flissy93%2Fwho-dat&demo-title=Who-Dat%20Demo&demo-url=https%3A%2F%2Fwho-dat.as93.net&demo-image=https%3A%2F%2Fi.ibb.co%2FJ5r1zCP%2Fwho-dat-square.png)
+[![1-Click Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-ffffff?style=for-the-badge&logo=vercel&labelColor=1b2744&link=https%3A%2F%2Fwho-dat.as93.net%2Fdocs)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Flissy93%2Fwho-dat&demo-title=Who-Dat%20Demo&demo-url=https%3A%2F%2Fwho-dat.as93.net&demo-image=https%3A%2F%2Fi.ibb.co%2FJ5r1zCP%2Fwho-dat-square.png)
 
 #### Option 2: Docker
 
@@ -141,7 +139,7 @@ Providing you've got Docker installed, you can get everything by running:
 docker run -p 8080:8080 --dns 8.8.8.8 --dns 8.8.4.4 lissy93/who-dat
 ```
 
-[![Deploy from Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?style=for-the-badge&logo=docker&labelColor=1b2744&link=https%3A%2F%2Fwho-dat.as93.net%2Fdocs.html)](https://hub.docker.com/r/lissy93/who-dat)
+[![Deploy from Docker](https://img.shields.io/badge/Deploy-Docker-2496ED?style=for-the-badge&logo=docker&labelColor=1b2744&link=https%3A%2F%2Fwho-dat.as93.net%2Fdocs)](https://hub.docker.com/r/lissy93/who-dat)
 
 
 #### Option 3: Binary
@@ -178,7 +176,7 @@ chmod +x who-dat
 #### Option 4: Build from Source
 
 Follow the setup instructions in the [Development](#development) section.<br>
-Then run `go build -a -installsuffix cgo -o who-dat .` to generate the binary for your system.<br>
+Then run `go build -o who-dat ./cmd/server` to generate the binary for your system.<br>
 You'll then be able to execute the newly built `./who-dat` file directly to start the application.
 
 ---
@@ -207,17 +205,15 @@ If authentication is not configured (no `AUTH_KEY` set), the API will remain pub
 
 ## Development
 
-Prerequisites: You'll need [Go](https://go.dev/) and [Node](https://nodejs.org/) installed. You will likley also want [Git](https://git-scm.com/) and/or [Docker](https://www.docker.com/).
+Prerequisites: You'll need [Go](https://go.dev/) installed. You will likley also want [Git](https://git-scm.com/) and/or [Docker](https://www.docker.com/). The frontend is plain HTML/Alpine.js embedded into the binary, so there's no Node build step.
 
 ```
 git clone git@github.com:Lissy93/who-dat.git
 cd who-dat
-go get
-npm install
-npm run build
+go mod download
 ```
 
-Then run either `npx vercel dev`, or `go run main.go`
+Then run `go run ./cmd/server`
 
 Alternativley, build the Docker container with `docker build -t who-dat .`
 
@@ -259,239 +255,19 @@ We've got a (non-Microsoft) mirror of this repository hosted on CodeBerg, at [co
 
 ## Credits
 
-##### Inspiration
-This project was inspired by [someshkar/whois-api](https://github.com/someshkar/whois-api) by [Somesh Kar](https://someshkar.com/).
-
-##### Tech Credits
-- The frontend is built with Alpine.js[^alpinejs], Vite[^vite], TS[^typescript] and SCSS[^scss] (plus the usual web tech stack).
-- The backend is written in Go[^golang], and was made possible thanks to [json-iterator/go](https://github.com/json-iterator/go) and [likexian/whois-parser](https://github.com/likexian/whois-parser)
-- Demo deployed to Vercel[^vercel] (but also available on DockerHub[^dockerhub]), and source of course on GitHub[^github] and CodeBerg[^codeberg].
-
-[^alpinejs]: [Alpine.js](https://alpinejs.dev/) - A rugged, minimal framework for composing JavaScript behavior in your markup.
-[^vite]: [Vite](https://vitejs.dev/) - A build tool that aims to provide a faster and leaner development experience for modern web projects.
-[^typescript]: [TypeScript](https://www.typescriptlang.org/) - A typed superset of JavaScript that compiles to plain JavaScript.
-[^scss]: [SCSS](https://sass-lang.com/) - A preprocessor scripting language that is interpreted or compiled into Cascading Style Sheets (CSS).
-[^golang]: [Go Lang](https://golang.org/) - An open source programming language that makes it easy to build simple, reliable, and efficient software.
-[^github]: [GitHub](https://github.com/) - A platform for version control and collaboration. It lets you and others work together on projects from anywhere.
-[^codeberg]: [Codeberg](https://codeberg.org/) - A free and open-source forge for collaborative software development.
-[^vercel]: [Vercel](https://vercel.com/) - Static hosting and shit
-[^dockerhub]: [DockerHub](https://hub.docker.com/) - Container registry hosting and shit
-
 ##### Contributors
 
-<!-- readme: contributors -start -->
-<table>
-<tr>
-    <td align="center">
-        <a href="https://github.com/liss-bot">
-            <img src="https://avatars.githubusercontent.com/u/87835202?v=4" width="80;" alt="liss-bot"/>
-            <br />
-            <sub><b>Alicia Bot</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/lissy93">
-            <img src="https://avatars.githubusercontent.com/u/1862727?v=4" width="80;" alt="lissy93"/>
-            <br />
-            <sub><b>Alicia Sykes</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/Sammy-Lastre">
-            <img src="https://avatars.githubusercontent.com/u/63964062?v=4" width="80;" alt="Sammy-Lastre"/>
-            <br />
-            <sub><b>Sammy Lastre Silveira</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/cedwardsmedia">
-            <img src="https://avatars.githubusercontent.com/u/1514767?v=4" width="80;" alt="cedwardsmedia"/>
-            <br />
-            <sub><b>Corey Edwards</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/phill-holland">
-            <img src="https://avatars.githubusercontent.com/u/32714574?v=4" width="80;" alt="phill-holland"/>
-            <br />
-            <sub><b>Phill Holland</b></sub>
-        </a>
-    </td></tr>
-</table>
-<!-- readme: contributors -end -->
+[![contributors badge](https://readme-contribs.as93.net/contributors/lissy93/who-dat?shape=squircle)](https://github.com/lissy93/who-dat/graphs/contributors)
 
 ##### Sponsors
 
-<!-- readme: sponsors -start -->
-<table>
-<tr>
-    <td align="center">
-        <a href="https://github.com/BrunoBernardino">
-            <img src="https://avatars.githubusercontent.com/u/1239616?u=6a9bfea14526fc6c7e36997db2cf8a875c426250&v=4" width="80;" alt="BrunoBernardino"/>
-            <br />
-            <sub><b>Bruno Bernardino</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/bile0026">
-            <img src="https://avatars.githubusercontent.com/u/5022496?u=aec96ad173c0ea9baaba93807efa8a848af6595c&v=4" width="80;" alt="bile0026"/>
-            <br />
-            <sub><b>Zach Biles</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/UlisesGascon">
-            <img src="https://avatars.githubusercontent.com/u/5110813?u=3c41facd8aa26154b9451de237c34b0f78d672a5&v=4" width="80;" alt="UlisesGascon"/>
-            <br />
-            <sub><b>Ulises Gascón</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/nrjohnstone">
-            <img src="https://avatars.githubusercontent.com/u/6700819?u=69bacb0992f954b8ae8845228726c9f24b6ebff1&v=4" width="80;" alt="nrjohnstone"/>
-            <br />
-            <sub><b>Nathan Johnstone</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/InDieTasten">
-            <img src="https://avatars.githubusercontent.com/u/7047377?u=8d8f8017628b38bc46dcbf3620e194b01d3fb2d1&v=4" width="80;" alt="InDieTasten"/>
-            <br />
-            <sub><b>InDieTasten</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/araguaci">
-            <img src="https://avatars.githubusercontent.com/u/7318668?v=4" width="80;" alt="araguaci"/>
-            <br />
-            <sub><b>Araguaci</b></sub>
-        </a>
-    </td></tr>
-<tr>
-    <td align="center">
-        <a href="https://github.com/elvito">
-            <img src="https://avatars.githubusercontent.com/u/9715912?v=4" width="80;" alt="elvito"/>
-            <br />
-            <sub><b>Elvito</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/vlad-tim">
-            <img src="https://avatars.githubusercontent.com/u/11474041?u=eee43705b54d2ec9f51fc4fcce5ad18dd17c87e4&v=4" width="80;" alt="vlad-tim"/>
-            <br />
-            <sub><b>Vlad</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/helixzz">
-            <img src="https://avatars.githubusercontent.com/u/12218889?u=d06d0c103dfbdb99450623064f7da3c5a3675fb6&v=4" width="80;" alt="helixzz"/>
-            <br />
-            <sub><b>HeliXZz</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/Daechler">
-            <img src="https://avatars.githubusercontent.com/u/50748803?u=de67f2510378245669e134c508b676ea82e7688f&v=4" width="80;" alt="Daechler"/>
-            <br />
-            <sub><b>Daechler</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/getumbrel">
-            <img src="https://avatars.githubusercontent.com/u/59408891?v=4" width="80;" alt="getumbrel"/>
-            <br />
-            <sub><b>Umbrel</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/ssdnodes">
-            <img src="https://avatars.githubusercontent.com/u/66710902?v=4" width="80;" alt="ssdnodes"/>
-            <br />
-            <sub><b>SSD Nodes</b></sub>
-        </a>
-    </td></tr>
-<tr>
-    <td align="center">
-        <a href="https://github.com/frankdez93">
-            <img src="https://avatars.githubusercontent.com/u/87549420?v=4" width="80;" alt="frankdez93"/>
-            <br />
-            <sub><b>Frankdez93</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/BigoudOps">
-            <img src="https://avatars.githubusercontent.com/u/101472804?u=5e4948110e48320024f212edf5ae2332b63fc391&v=4" width="80;" alt="BigoudOps"/>
-            <br />
-            <sub><b>John BigoudOps</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/terminaltrove">
-            <img src="https://avatars.githubusercontent.com/u/121595180?v=4" width="80;" alt="terminaltrove"/>
-            <br />
-            <sub><b>Terminal Trove</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/MichaelPerron">
-            <img src="https://avatars.githubusercontent.com/u/130603904?u=7c00e3e333b538bc86168cbfa72e997f818967b8&v=4" width="80;" alt="MichaelPerron"/>
-            <br />
-            <sub><b>Michael Perron</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/hudsonrock-partnerships">
-            <img src="https://avatars.githubusercontent.com/u/163282900?u=5f2667f7fe5d284ac7a2da6b0800ea8970b0fcbf&v=4" width="80;" alt="hudsonrock-partnerships"/>
-            <br />
-            <sub><b>Hudsonrock-partnerships</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/crmzx8">
-            <img src="https://avatars.githubusercontent.com/u/170860426?u=43694046c9b5a99a3014369b22cc48815b07b457&v=4" width="80;" alt="crmzx8"/>
-            <br />
-            <sub><b>CRMX8</b></sub>
-        </a>
-    </td></tr>
-<tr>
-    <td align="center">
-        <a href="https://github.com/hesreallyhim">
-            <img src="https://avatars.githubusercontent.com/u/172150522?u=e288991976c46b53437a5880e90be140634a8477&v=4" width="80;" alt="hesreallyhim"/>
-            <br />
-            <sub><b>Really Him</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/gl0bal01">
-            <img src="https://avatars.githubusercontent.com/u/173822055?u=8911ba88503c8b1d134dc0058e9e0bec5f23b8d9&v=4" width="80;" alt="gl0bal01"/>
-            <br />
-            <sub><b>Gl0bal01 💖 龴ↀ◡ↀ龴</b></sub>
-        </a>
-    </td>
-    <td align="center">
-        <a href="https://github.com/Envisage-Cloud-Solutions">
-            <img src="https://avatars.githubusercontent.com/u/219464178?v=4" width="80;" alt="Envisage-Cloud-Solutions"/>
-            <br />
-            <sub><b>Envisage Cloud Solutions</b></sub>
-        </a>
-    </td></tr>
-</table>
-<!-- readme: sponsors -end -->
-
----
-
-## More Like This
-
-You might be interested in [Web-Check](https://github.com/Lissy93/web-check), an all-in-one tool for fetching info on a given domain name.
-
-If you like projects like these, consider [following me](https://github.com/Lissy93) on GitGub 😊<br>
-I'm often putting out new (free & open source) utilities, relating to security, privacy, OSINT, Linux and self-hosting.
+[![sponsors badge](https://readme-contribs.as93.net/sponsors/lissy93?shape=squircle)](https://github.com/sponsors/lissy93)
 
 ---
 
 ## License
 
-> _**[Lissy93/Who-Dat](https://github.com/Lissy93/who-dat)** is licensed under [MIT](https://github.com/Lissy93/who-dat/blob/HEAD/LICENSE) © [Alicia Sykes](https://aliciasykes.com) 2024._<br>
+> _**[Lissy93/Who-Dat](https://github.com/Lissy93/who-dat)** is licensed under [MIT](https://github.com/Lissy93/who-dat/blob/HEAD/LICENSE) © [Alicia Sykes](https://aliciasykes.com) 2024 - present._<br>
 > <sup align="right">For information, see <a href="https://tldrlegal.com/license/mit-license">TLDR Legal > MIT</a></sup>
 
 <details>
@@ -524,15 +300,11 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 <!-- License + Copyright -->
 <p  align="center">
-  <i>© <a href="https://aliciasykes.com">Alicia Sykes</a> 2024</i><br>
+  <i>© <a href="https://aliciasykes.com">Alicia Sykes</a> 2026</i><br>
   <i>Licensed under <a href="https://gist.github.com/Lissy93/143d2ee01ccc5c052a17">MIT</a></i><br>
   <a href="https://github.com/lissy93"><img src="https://i.ibb.co/4KtpYxb/octocat-clean-mini.png" /></a><br>
   <sup>Thanks for visiting :)</sup>
 </p>
-
-###### References
-
-<small><sub>➧ See [Credits](#credits)</sub></small>
 
 <!-- Dinosaurs are Awesome -->
 <!-- 
