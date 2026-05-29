@@ -2,6 +2,8 @@ module github.com/lissy93/who-dat
 
 go 1.25.0
 
+toolchain go1.26.3
+
 require (
 	github.com/likexian/whois v1.15.6
 	github.com/likexian/whois-parser v1.24.20
