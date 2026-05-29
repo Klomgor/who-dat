@@ -49,41 +49,65 @@
     <section class="lookup" x-data="whoisLookup()">
       <h2>WHOIS Lookup</h2>
       <form @submit.prevent="lookup">
-        <input type="text" x-model="domain" placeholder="Enter a domain name" />
-        <button type="submit">Lookup</button>
+        <input
+          type="text"
+          x-model="domain"
+          placeholder="Enter a domain name"
+          :disabled="loading"
+        />
+        <button type="submit" :disabled="loading">
+          <span x-show="!loading">Lookup</span>
+          <span x-show="loading">Loading...</span>
+        </button>
       </form>
-      <div x-show="result">
-        <h3>Results</h3>
-        <button class="small toggle" @click="toggleFormat" x-text="showFormatted ? 'Show Raw' : 'Show Formatted'"></button>
-          <div x-show="showFormatted && formattedResult">
-            <template x-for="section in (formattedResult || [])" class="result-section">
-              <div>
-              <h4 x-text="section.lbl"></h4>
+
+      <!-- Error Display -->
+      <div x-show="error" style="color: #ff6b6b; margin-top: 1rem;">
+        <p x-text="error"></p>
+      </div>
+
+      <!-- Results Display -->
+      <div x-show="response">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3>Results</h3>
+          <div>
+            <button class="small toggle" @click="toggleMetadata" x-text="showMetadata ? 'Hide Info' : 'Show Info'"></button>
+            <button class="small toggle" @click="toggleRaw" x-text="showRaw ? 'Show Formatted' : 'Show Raw'"></button>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div x-show="showMetadata && response" style="margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
+          <p style="margin: 0.25rem 0;">
+            <strong>Domain:</strong> <span x-text="response?.domain"></span>
+          </p>
+          <p style="margin: 0.25rem 0;">
+            <strong>Cached:</strong> <span x-text="response?.cached ? 'Yes ⚡' : 'No'"></span>
+          </p>
+          <p style="margin: 0.25rem 0;">
+            <strong>Timestamp:</strong> <span x-text="new Date(response?.timestamp).toLocaleString()"></span>
+          </p>
+        </div>
+
+        <!-- Formatted View -->
+        <div x-show="!showRaw && formattedSections.length > 0">
+          <template x-for="section in formattedSections" :key="section.label">
+            <div class="result-section" style="margin-bottom: 1.5rem;">
+              <h4 x-text="section.label" style="margin-bottom: 0.75rem;"></h4>
               <ul class="row">
-                <template x-for="item in section.val">
+                <template x-for="item in section.items" :key="item.key">
                   <li>
-                    <span class="row-lbl" x-text="item.lbl"></span>
-                    <template x-if="Array.isArray(item.val)">
-                      <span class="row-val row-val-list">
-                        <template x-for="subItem in item.val">
-                          <span class="sub-item" x-text="subItem"></span>
-                        </template>
-                      </span>
-                      <span class="row-val row-val-list" x-text="item.val.join(', ')"></span>
-                    </template>
-                    <template x-if="!Array.isArray(item.val)">
-                      <span class="row-val" x-text="item.val"></span>
-                    </template>
+                    <span class="row-lbl" x-text="item.key"></span>
+                    <span class="row-val" x-html="item.value"></span>
                   </li>
                 </template>
               </ul>
             </div>
-            </template>
-          </div>
-          <pre x-show="!showFormatted" x-text="result"></pre>
-      </div>
-      <div x-show="error" style="color: red;">
-        <p x-text="error"></p>
+          </template>
+        </div>
+
+        <!-- Raw JSON View -->
+        <pre x-show="showRaw" x-text="JSON.stringify(response, null, 2)" style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 4px; overflow-x: auto;"></pre>
       </div>
     </section>
 
