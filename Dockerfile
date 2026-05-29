@@ -1,40 +1,21 @@
-# Multi-stage Dockerfile for Who-Dat
-# Produces a minimal ~15MB Alpine-based image
-
-# Stage 1: Build the frontend
-FROM node:20-alpine as frontend-builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
-COPY src ./src
-COPY public ./public
-COPY tsconfig.json vite.config.js ./
-RUN npm run build
-
-# Stage 2: Build the Go application
-FROM golang:1.21-alpine as go-builder
-WORKDIR /build
+# Build a small static Go binary, cross-compiled to the target platform so multi-arch
+# builds compile natively on the runner instead of under slow QEMU emulation. The frontend
+# is embedded via go:embed, so there is no Node build stage.
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS build
+WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-COPY --from=frontend-builder /app/dist ./cmd/server/dist
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
-    -ldflags='-w -s -extldflags "-static"' \
-    -a -installsuffix cgo \
-    -o who-dat \
-    ./cmd/server
+ARG TARGETOS TARGETARCH TARGETVARIANT
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    GOARM=$(printf '%s' "$TARGETVARIANT" | tr -d v) \
+    go build -ldflags="-w -s" -o /who-dat ./cmd/server
 
-# Stage 3: Final minimal image
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata && \
-    adduser -D -u 1000 appuser
-WORKDIR /app
-COPY --from=go-builder /build/who-dat .
-RUN chown -R appuser:appuser /app
-
-USER appuser
+RUN apk --no-cache add ca-certificates && adduser -D -u 1000 app
+COPY --from=build /who-dat /usr/local/bin/who-dat
+USER app
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/ping || exit 1
-
-ENTRYPOINT ["./who-dat"]
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget -q -O- http://localhost:8080/health || exit 1
+ENTRYPOINT ["who-dat"]

@@ -28,10 +28,6 @@ who-dat
 coverage.out
 coverage.html
 
-# WASM
-*.wasm
-cmd/workers/who-dat.wasm
-
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
