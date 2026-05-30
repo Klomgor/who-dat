@@ -1,5 +1,5 @@
 # Weekly sync of source GitHub repo over to our Codeberg mirror
-name: 🪞 Mirror to Codeberg
+name: 🪞 Mirror
 on:
   workflow_dispatch:
   schedule:

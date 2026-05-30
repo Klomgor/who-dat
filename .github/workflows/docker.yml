@@ -1,4 +1,4 @@
-name: 🐳 Build + Publish Multi-Platform Image
+name: 🐳 Docker
 
 on:
   workflow_dispatch:
@@ -74,6 +74,8 @@ jobs:
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+        build-args: |
+          VERSION=${{ steps.meta.outputs.version }}
         push: true
         provenance: false
 

@@ -35,7 +35,7 @@ jobs:
   coverage:
     name: Probe RDAP/WHOIS coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - name: 🛎️ Checkout
         uses: actions/checkout@v4
