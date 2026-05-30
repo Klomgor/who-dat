@@ -7,9 +7,10 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 ARG TARGETOS TARGETARCH TARGETVARIANT
+ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     GOARM=$(printf '%s' "$TARGETVARIANT" | tr -d v) \
-    go build -ldflags="-w -s" -o /who-dat ./cmd/server
+    go build -ldflags="-w -s -X main.version=$VERSION" -o /who-dat ./cmd/server
 
 FROM alpine:latest
 RUN apk --no-cache add ca-certificates && adduser -D -u 1000 app
