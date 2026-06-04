@@ -102,6 +102,108 @@ func TestRawPassthrough(t *testing.T) {
 	}
 }
 
+// rlServer builds a handler with rate limiting on and one valid API key.
+func rlServer() http.Handler {
+	cfg := &config.Config{
+		LookupTimeout: 2_000_000_000,
+		MaxDomains:    5,
+		RatePerMinute: 60,
+		RateBurst:     1,
+		APIKeys:       []string{"devkey"},
+	}
+	svc := lookup.NewService(&fakeSource{result: registered()}, &fakeSource{err: srcerr.ErrNoSource}, nil)
+	return New(cfg, svc)
+}
+
+func TestRateLimitThrottlesAnonymous(t *testing.T) {
+	h := rlServer()
+	get := func(key string) int {
+		r := httptest.NewRequest(http.MethodGet, "/v1/whois/example.com", nil)
+		r.RemoteAddr = "192.0.2.1:1111"
+		if key != "" {
+			r.Header.Set("X-API-Key", key)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, r)
+		return rec.Code
+	}
+
+	// burst=1: first anonymous request passes, the next is throttled.
+	if got := get(""); got != http.StatusOK {
+		t.Fatalf("first anon request = %d, want 200", got)
+	}
+	if got := get(""); got != http.StatusTooManyRequests {
+		t.Fatalf("second anon request = %d, want 429", got)
+	}
+}
+
+func TestValidKeyBypassesRateLimit(t *testing.T) {
+	h := rlServer()
+	for i := 0; i < 5; i++ {
+		r := httptest.NewRequest(http.MethodGet, "/v1/whois/example.com", nil)
+		r.RemoteAddr = "192.0.2.2:2222"
+		r.Header.Set("X-API-Key", "devkey")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, r)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("keyed request %d = %d, want 200 (should bypass limit)", i, rec.Code)
+		}
+	}
+	// A wrong key gets no bypass and is throttled after the burst.
+	throttled := false
+	for i := 0; i < 3; i++ {
+		r := httptest.NewRequest(http.MethodGet, "/v1/whois/example.com", nil)
+		r.RemoteAddr = "192.0.2.3:3333"
+		r.Header.Set("Authorization", "Bearer wrong")
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, r)
+		if rec.Code == http.StatusTooManyRequests {
+			throttled = true
+		}
+	}
+	if !throttled {
+		t.Fatal("wrong key was never throttled; bypass is too permissive")
+	}
+}
+
+// cacheServer builds a handler with a CDN cache header configured, whose RDAP source
+// returns the given result/err.
+func cacheServer(result *model.Result, err error) http.Handler {
+	cfg := &config.Config{LookupTimeout: 2_000_000_000, MaxDomains: 5, CDNCacheControl: "public, s-maxage=3600"}
+	svc := lookup.NewService(&fakeSource{result: result, err: err}, &fakeSource{err: srcerr.ErrNoSource}, nil)
+	return New(cfg, svc)
+}
+
+func TestCacheHeaderOnlyOnSuccess(t *testing.T) {
+	get := func(h http.Handler, path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, path, nil))
+		return rec
+	}
+
+	if rec := get(cacheServer(registered(), nil), "/v1/whois/example.com"); rec.Header().Get("Cache-Control") == "" {
+		t.Error("successful lookup should carry a Cache-Control header")
+	}
+	if rec := get(cacheServer(nil, srcerr.ErrUpstream), "/v1/whois/example.com"); rec.Header().Get("Cache-Control") != "" {
+		t.Errorf("error response must not be cached, got %q", rec.Header().Get("Cache-Control"))
+	}
+}
+
+func TestMultiCacheHeader(t *testing.T) {
+	get := func(h http.Handler) string {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/multi?domains=a.com,b.com", nil))
+		return rec.Header().Get("Cache-Control")
+	}
+
+	if get(cacheServer(registered(), nil)) == "" {
+		t.Error("multi with all lookups succeeding should be cacheable")
+	}
+	if got := get(cacheServer(nil, srcerr.ErrUpstream)); got != "" {
+		t.Errorf("multi with a failed lookup must not be cached, got %q", got)
+	}
+}
+
 func TestHealth(t *testing.T) {
 	rec := httptest.NewRecorder()
 	newTestServer(nil, nil).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
