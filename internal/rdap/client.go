@@ -30,7 +30,7 @@ type Client struct {
 	bootstrap *bootstrap
 }
 
-//Client using the given HTTP client
+// Client using the given HTTP client
 func NewClient(httpClient *http.Client) *Client {
 	return &Client{http: httpClient, bootstrap: newBootstrap(httpClient)}
 }
