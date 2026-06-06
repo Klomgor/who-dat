@@ -4,6 +4,7 @@ package rdap
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
@@ -29,10 +30,18 @@ type Client struct {
 	bootstrap *bootstrap
 }
 
-// NewClient returns a Client using the given HTTP client (its timeout still applies on
-// top of the request context).
+// Client using the given HTTP client
 func NewClient(httpClient *http.Client) *Client {
 	return &Client{http: httpClient, bootstrap: newBootstrap(httpClient)}
+}
+
+// TLS config for outbound RDAP requests, since need some legacy RSA-CBC suites for some registries
+func TLSConfig() *tls.Config {
+	ids := []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA, tls.TLS_RSA_WITH_AES_256_CBC_SHA}
+	for _, cs := range tls.CipherSuites() {
+		ids = append(ids, cs.ID)
+	}
+	return &tls.Config{CipherSuites: ids}
 }
 
 // Lookup queries the registry's RDAP server for n. A 404 is a successful "not registered"
