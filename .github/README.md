@@ -1,6 +1,6 @@
 
 <p align="center">
-<img src="https://i.ibb.co/J5r1zCP/who-dat-square.png" width="128" /><br />
+<img src="https://pixelflare.cc/alicia/logo/who-dat/w256" width="128" /><br />
 <i>Free & Open Source WHOIS Lookup Service</i>
 <br />
 <i>No-CORS, no auth API that's publicly available or easily self-hostable</i>
@@ -34,11 +34,17 @@
 
 </details>
 
+## About
+
+who-dat is a self-hostable domain lookup service that turns the mess of RDAP and WHOIS into one clean JSON API.
+It does the hard parts you can't do in a browser or get consistently elsewhere: discovering the right RDAP server per-TLD via IANA bootstrap, parsing nested jCard contact data, and normalizing every registry's output into one shape. It queries RDAP first, falls back to WHOIS, and returns a single consistent result.
+
+
 ## API Usage
 
-> **TL;DR** Get the WHOIS records for a site: `curl https://who-dat.as93.net/example.com`
+> **TL;DR** Get the RDAP/WHOIS records for any site: `curl https://who-dat.as93.net/example.com`
 
-Who-Dat queries [RDAP](https://en.wikipedia.org/wiki/Registration_Data_Access_Protocol) where available and falls back to WHOIS, returning a single, consistent, normalized JSON shape for every TLD. For detailed request + response schemas, and to try the API out, you can reference the [spec](https://who-dat.as93.net/docs)
+For detailed request + response schemas, and to try the API out, you can reference the [spec](https://who-dat.as93.net/docs)
 
 ### Base URL
 
@@ -172,7 +178,6 @@ chmod +x who-dat
 </details>
 
 
-
 #### Option 4: Build from Source
 
 Follow the setup instructions in the [Development](#development) section.<br>
@@ -181,31 +186,38 @@ You'll then be able to execute the newly built `./who-dat` file directly to star
 
 ---
 
-## Authentication
+## Configuration
+There's a few optional environmental variables that you can set to configure certain features, limits and usage.
+
+### Authentication
 
 Authentication is optional, and can be enabled by setting the `AUTH_KEY` environment variable.
+Once enabled, all API requests must include the key in the Authorization header, and unauthenticated requests will respond with a 403.
 
-When authentication is enabled, all API requests must include the key in the Authorization header, using one of the formats indicated below.
-
-#### Raw API Key
-
-```
-curl -H "Authorization: your-secret-key" https://who-dat.yourdomain.com/example.com
+```bash
+curl -H "Authorization: Bearer <your-secret-key>" https://who-dat.yourdomain.com/example.com
 ```
 
-#### Bearer Token Format
+### Caching
 
-```
-curl -H "Authorization: Bearer your-secret-key" https://who-dat.yourdomain.com/example.com
-```
+Lookups are cached in-memory so repeated requests don't re-hit the registry. Caching is on by default, with a 1 hour TTL.
+Set `ENABLE_CACHE=false` to turn it off, or `CACHE_TTL_SECONDS` to change how long results are kept. Cached responses have `meta.cached` set to `true`.
 
-#### X-API-Key Header
+If you're running on Vercel, `CDN_CACHE_TTL_SECONDS` (default 3600) and `CDN_CACHE_SWR_SECONDS` (default 86400) set the shared-CDN `Cache-Control`, so repeat lookups are served from the edge without re-invoking the function.
 
-```
-curl -H "X-API-Key: <your-api-key>" https://who-dat.yourdomain.com/example.com
-```
+### Rate-Limiting
 
-If authentication is not configured (no `AUTH_KEY` set), the API will remain publicly accessible.
+Requests can be rate-limited per-IP using a token bucket. It's off by default when self-hosting, but the public instance allows 30 requests/minute with a burst of 10. Set `RATE_PER_MINUTE` (use `0` to disable) and `RATE_BURST` to configure it. Clients that exceed the limit get a 429 with a `Retry-After` header.
+
+To exempt trusted clients from the limit without locking down the whole API, set `API_KEYS` to a comma-separated list of keys, and have those clients send one in the Authorization header. (This is separate from `AUTH_KEY`, which makes the entire API private.)
+
+### Timeouts
+
+Each upstream RDAP/WHOIS lookup has a 5 second timeout. Set `LOOKUP_TIMEOUT_SECONDS` to change it. Requests that time out respond with a 504.
+
+### Bulk Limits
+
+The `/multi` endpoint accepts up to 10 domains per request by default. Set `MAX_DOMAINS` to raise or lower this.
 
 ---
 
@@ -213,7 +225,7 @@ If authentication is not configured (no `AUTH_KEY` set), the API will remain pub
 
 Prerequisites: You'll need [Go](https://go.dev/) installed. You will likley also want [Git](https://git-scm.com/) and/or [Docker](https://www.docker.com/). The frontend is plain HTML/Alpine.js embedded into the binary, so there's no Node build step.
 
-```
+```bash
 git clone git@github.com:Lissy93/who-dat.git
 cd who-dat
 go mod download
@@ -223,26 +235,26 @@ Then run `go run ./cmd/server`
 
 Alternativley, build the Docker container with `docker build -t who-dat .`
 
-[![Open in GitPod](https://img.shields.io/badge/GitPod-Try_Live-FFAE33?style=for-the-badge&logo=gitpod&labelColor=1b2744&link=https%3A%2F%2Fcodeberg.org%2Falicia%2Fwho-dat)](https://gitpod.io/#https://github.com/lissy93/who-dat)
-[![Open in VS Code](https://img.shields.io/badge/CodeSpaces-Try_Live-007ACC?style=for-the-badge&logo=visualstudiocode&labelColor=1b2744&link=https%3A%2F%2Fcodeberg.org%2Falicia%2Fwho-dat)](https://codespaces.new/Lissy93/who-dat)
+[![Open in VS Code](https://img.shields.io/badge/CodeSpaces-Try_Live-007ACC?style=for-the-badge&logo=vscodium&labelColor=1b2744&link=https%3A%2F%2Fcodeberg.org%2Falicia%2Fwho-dat)](https://codespaces.new/Lissy93/who-dat)
 
 ---
 
 ## Web Interface
 
-There's a very simple frontend included in the app. This is built with Alpine.js, so is super light-weight, and only adds about 100kb to the total executable.
+There's a very simple frontend included in the app. This is built with Alpine.js, so is super light-weight, and only adds about 17kb to the total executable.
 The web interface is used to view WHOIS records for a given domain, and also hosts the API documentation.
 
 <p align="center">
-<img width="600" src="https://i.ibb.co/1dYcdZC/who-dat-screenshot.png" />
+    <a href="https://who-dat.as93.net/">
+        <img width="600" src="https://pixelflare.cc/alicia/project-screens/who-dat-screenshot" />
+    </a
 </p>
 
 ---
 
 ## Contributing
 
-Contributions of any kind are welcome (and would be much appreciated!). Be sure to follow our [Code of Conduct](https://github.com/Lissy93/who-dat/blob/main/.github/CODE_OF_CONDUCT.md).<br>
-If you're new to open source, I've put together some guides in [Git-In](https://github.com/Lissy93/git-into-open-source/), but feel free to reach out if you need any support.
+Contributions of any kind are welcome (and would be much appreciated!). Be sure to follow our [Code of Conduct](https://github.com/Lissy93/who-dat/blob/main/.github/CODE_OF_CONDUCT.md).
 
 Not a coder? You can still help, by raising bugs you find, updating docs, or consider sponsoring me on GitHub
 
