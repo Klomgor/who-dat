@@ -199,6 +199,12 @@ curl -H "Authorization: your-secret-key" https://who-dat.yourdomain.com/example.
 curl -H "Authorization: Bearer your-secret-key" https://who-dat.yourdomain.com/example.com
 ```
 
+#### X-API-Key Header
+
+```
+curl -H "X-API-Key: <your-api-key>" https://who-dat.yourdomain.com/example.com
+```
+
 If authentication is not configured (no `AUTH_KEY` set), the API will remain publicly accessible.
 
 ---

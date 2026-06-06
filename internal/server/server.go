@@ -48,8 +48,9 @@ func Build(cfg *config.Config) http.Handler {
 func New(cfg *config.Config, svc *lookup.Service) http.Handler {
 	s := &server{cfg: cfg, svc: svc, files: http.FileServer(http.FS(web.FS()))}
 
+	privileged := func(r *http.Request) bool { return cfg.ValidKey(tokenFrom(r)) }
 	api := func(h http.HandlerFunc) http.Handler {
-		return chain(h, rateLimit(cfg.RatePerMinute, cfg.RateBurst), auth(cfg.AuthKey))
+		return chain(h, rateLimit(cfg.RatePerMinute, cfg.RateBurst, privileged), auth(cfg))
 	}
 	s.lookupAPI = api(s.handleLookupBare)
 

@@ -38,12 +38,20 @@ func (s *server) lookup(w http.ResponseWriter, r *http.Request, query string) {
 	}
 	res.Query = query
 
+	s.setEdgeCache(w)
 	if r.URL.Query().Get("raw") == "true" && len(res.Raw) > 0 {
 		w.Header().Set("Content-Type", res.RawContentType)
 		_, _ = w.Write(res.Raw)
 		return
 	}
 	writeJSON(w, http.StatusOK, res)
+}
+
+// setEdgeCache lets a CDN cache this successful lookup. No-op when unconfigured.
+func (s *server) setEdgeCache(w http.ResponseWriter) {
+	if s.cfg.CDNCacheControl != "" {
+		w.Header().Set("Cache-Control", s.cfg.CDNCacheControl)
+	}
 }
 
 // handleMulti serves GET /multi?domains=a.com,b.com, returning per-domain outcomes.
@@ -63,6 +71,7 @@ func (s *server) handleMulti(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	results := make([]any, 0, len(queries))
+	cacheable := true // a transient lookup failure must not be cached
 	for _, q := range queries {
 		q = strings.TrimSpace(q)
 		n, err := domain.Parse(q)
@@ -73,10 +82,14 @@ func (s *server) handleMulti(w http.ResponseWriter, r *http.Request) {
 		res, err := s.svc.Lookup(ctx, n)
 		if err != nil {
 			results = append(results, multiError(q, "lookup failed"))
+			cacheable = false
 			continue
 		}
 		res.Query = q
 		results = append(results, res)
+	}
+	if cacheable {
+		s.setEdgeCache(w)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"results": results})
 }

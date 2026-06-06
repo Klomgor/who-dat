@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lissy93/who-dat/internal/config"
 )
 
 // middleware is a standard HTTP wrapper.
@@ -79,16 +81,16 @@ func cors(next http.Handler) http.Handler {
 	})
 }
 
-// auth enforces a bearer token when one is configured.
-func auth(key string) middleware {
+// auth enforces a valid key only when the API is private (AUTH_KEY set). In public mode
+// it is a no-op; keys still grant a rate-limit bypass via rateLimit.
+func auth(cfg *config.Config) middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if key == "" {
+			if !cfg.AuthEnabled() {
 				next.ServeHTTP(w, r)
 				return
 			}
-			token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-			if token != key {
+			if !cfg.ValidKey(tokenFrom(r)) {
 				writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "valid API key required", "")
 				return
 			}
@@ -97,14 +99,19 @@ func auth(key string) middleware {
 	}
 }
 
-// rateLimit applies a per-IP token bucket. perMinute <= 0 disables it.
-func rateLimit(perMinute, burst int) middleware {
+// rateLimit applies a per-IP token bucket. perMinute <= 0 disables it. Requests that
+// carry a valid API key bypass the limit, so legitimate developers are never throttled.
+func rateLimit(perMinute, burst int, privileged func(*http.Request) bool) middleware {
 	if perMinute <= 0 {
 		return func(next http.Handler) http.Handler { return next }
 	}
 	lim := newLimiter(float64(perMinute)/60, burst)
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if privileged != nil && privileged(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
 			if ok, retry := lim.allow(clientIP(r)); !ok {
 				w.Header().Set("Retry-After", strconv.Itoa(retry))
 				writeError(w, http.StatusTooManyRequests, codeRateLimited, "rate limit exceeded", "")
@@ -113,6 +120,14 @@ func rateLimit(perMinute, burst int) middleware {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+// tokenFrom extracts an API key from the Authorization (Bearer) or X-API-Key header.
+func tokenFrom(r *http.Request) string {
+	if h := r.Header.Get("Authorization"); h != "" {
+		return strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
+	}
+	return strings.TrimSpace(r.Header.Get("X-API-Key"))
 }
 
 // statusWriter captures the response status for logging.
