@@ -33,6 +33,7 @@ func Build(cfg *config.Config) http.Handler {
 			MaxIdleConns:        100,
 			IdleConnTimeout:     90 * time.Second,
 			TLSHandshakeTimeout: 10 * time.Second,
+			TLSClientConfig:     rdap.TLSConfig(),
 		},
 	}
 

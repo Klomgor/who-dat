@@ -67,7 +67,10 @@ func main() {
 		return
 	}
 
-	httpClient := &http.Client{Timeout: *timeout + 5*time.Second}
+	httpClient := &http.Client{
+		Timeout:   *timeout + 5*time.Second,
+		Transport: &http.Transport{TLSClientConfig: rdap.TLSConfig()},
+	}
 
 	listCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	domains, err := loadDomains(listCtx, httpClient, *tldURL, *domainsFile, *prefix, *limit)

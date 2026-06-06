@@ -21,8 +21,7 @@ type Client struct{}
 // NewClient returns a WHOIS client.
 func NewClient() *Client { return &Client{} }
 
-// Lookup queries WHOIS for n, honoring ctx cancellation/deadline. The underlying library
-// is blocking, so it runs on a goroutine bounded by the context deadline.
+// Lookup queries WHOIS for n, honoring ctx cancellation/deadline
 func (c *Client) Lookup(ctx context.Context, n domain.Name) (*model.Result, error) {
 	type result struct {
 		raw string
@@ -44,10 +43,14 @@ func (c *Client) Lookup(ctx context.Context, n domain.Name) (*model.Result, erro
 		return nil, fmt.Errorf("%w: %v", srcerr.ErrTimeout, ctx.Err())
 	case res := <-ch:
 		if res.err != nil {
+			// timeout
 			if ctx.Err() != nil {
 				return nil, fmt.Errorf("%w: %v", srcerr.ErrTimeout, res.err)
 			}
-			return nil, fmt.Errorf("%w: whois query: %v", srcerr.ErrUpstream, res.err)
+			// referral failed (maybe URL instead of host), fallback to usable record if present
+			if res.raw == "" {
+				return nil, fmt.Errorf("%w: whois query: %v", srcerr.ErrUpstream, res.err)
+			}
 		}
 		return mapWhois(n, res.raw)
 	}
