@@ -109,6 +109,9 @@ components:
             code: { type: string, example: INVALID_DOMAIN }
             message: { type: string }
             query: { type: string }
+            source: { type: string, enum: [rdap, whois], description: Lookup backend that failed, when known. }
+            server: { type: string, description: Upstream server queried, when known. }
+            detail: { type: string, description: Underlying error detail, for diagnostics. }
     Result:
       type: object
       properties:

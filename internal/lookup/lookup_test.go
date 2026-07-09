@@ -3,6 +3,7 @@ package lookup
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -46,6 +47,19 @@ func TestLookupFallsBackToWHOIS(t *testing.T) {
 	}
 	if got == nil || whois.calls != 1 {
 		t.Fatalf("expected WHOIS fallback; whois.calls=%d", whois.calls)
+	}
+}
+
+func TestLookupFallbackErrorIsAnnotated(t *testing.T) {
+	rdap := &fakeSource{err: srcerr.ErrNoSource}
+	whois := &fakeSource{err: srcerr.ErrTimeout}
+	_, err := NewService(rdap, whois, nil).Lookup(context.Background(), testName)
+
+	if !errors.Is(err, srcerr.ErrTimeout) {
+		t.Fatalf("err = %v, want ErrTimeout preserved through annotation", err)
+	}
+	if !strings.Contains(err.Error(), "no rdap server registered for .com") {
+		t.Errorf("err = %q, want the missing-RDAP annotation", err)
 	}
 }
 

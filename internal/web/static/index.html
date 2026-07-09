@@ -66,7 +66,8 @@
               .then(async (response) => {
                 const data = await response.json();
                 if (!response.ok) {
-                  throw new Error((data && data.error && data.error.message) || 'Lookup failed');
+                  const e = data && data.error;
+                  throw new Error(e ? [e.message, e.detail].filter(Boolean).join(' - ') : 'Lookup failed');
                 }
                 return data;
               })

@@ -63,7 +63,7 @@ If you're self-hosting (recommended) then replace this with your own base URL.
 - **Success Response**:
   - **Code**: 200 (the lookup succeeded, whether or not the domain is registered)
   - **Content**: Normalized WHOIS/RDAP data as JSON; the `isRegistered` field indicates registration status.
-- **Error Response** (uniform envelope: `{ "error": { "code", "message", "query" } }`):
+- **Error Response** (uniform envelope: `{ "error": { "code", "message", "query" } }`, plus `source`, `server`, and `detail` when known):
   - **400** - invalid or unparseable domain
   - **429** - rate limited (includes a `Retry-After` header)
   - **501** - no RDAP or WHOIS source for that TLD

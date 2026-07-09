@@ -53,9 +53,16 @@ func (c *Client) Lookup(ctx context.Context, n domain.Name) (*model.Result, erro
 	}
 
 	base := strings.TrimRight(servers[0], "/")
-	url := base + "/domain/" + n.ASCII
+	r, err := c.get(ctx, n, base)
+	if err != nil {
+		return nil, &srcerr.SourceError{Source: model.SourceRDAP, Server: base, Err: err}
+	}
+	return r, nil
+}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+// get fetches and maps the domain object from the RDAP server at base.
+func (c *Client) get(ctx context.Context, n domain.Name, base string) (*model.Result, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+"/domain/"+n.ASCII, nil)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", srcerr.ErrUpstream, err)
 	}
