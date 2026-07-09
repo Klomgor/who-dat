@@ -38,6 +38,15 @@ type rdapEntity struct {
 	Links     []rdapLink     `json:"links"`
 }
 
+// TWNIC pads entities arrays with bare 404s; skip anything that is not an object.
+func (e *rdapEntity) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || b[0] != '{' {
+		return nil
+	}
+	type plain rdapEntity
+	return json.Unmarshal(b, (*plain)(e))
+}
+
 type rdapPublicID struct {
 	Type       string    `json:"type"`
 	Identifier laxString `json:"identifier"`

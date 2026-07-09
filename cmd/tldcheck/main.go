@@ -69,7 +69,7 @@ func main() {
 
 	httpClient := &http.Client{
 		Timeout:   *timeout + 5*time.Second,
-		Transport: &http.Transport{TLSClientConfig: rdap.TLSConfig()},
+		Transport: &http.Transport{TLSClientConfig: rdap.TLSConfig(), ForceAttemptHTTP2: true},
 	}
 
 	listCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

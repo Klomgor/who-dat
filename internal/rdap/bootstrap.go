@@ -28,6 +28,7 @@ var seeds = map[string][]string{
 	"af":               {"https://whois.nic.af/"}, // whois by name, rdap by nature
 	"ag":               {"https://rdap.identitydigital.services/rdap/"},
 	"arpa":             {"https://rdap.iana.org/"},
+	"aw":               {"https://rdap.nic.aw/"},
 	"bh":               {"https://rdap.centralnic.com/bh/"},
 	"bw":               {"https://rdap.nic.net.bw/"},
 	"bz":               {"https://rdap.identitydigital.services/rdap/"},
@@ -40,6 +41,7 @@ var seeds = map[string][]string{
 	"gi":               {"https://rdap.identitydigital.services/rdap/"},
 	"gl":               {"https://rdap.centralnic.com/gl/"},
 	"io":               {"https://rdap.identitydigital.services/rdap/"},
+	"iq":               {"https://rdap.reg.iq/rdap/"},
 	"ki":               {"https://rdap.coccaregistry.org/"},
 	"kz":               {"https://rdap.nic.kz/"},
 	"lc":               {"https://rdap.identitydigital.services/rdap/"},
@@ -64,6 +66,7 @@ var seeds = map[string][]string{
 	"ve":               {"https://rdap.nic.ve/rdap/"},
 	"vu":               {"https://rdap.dnrs.vu/"},
 	"ws":               {"https://rdap.website.ws/"},
+	"xn--kprw13d":      {"https://ccrdap.twnic.tw/taiwan/"},               // Taiwan IDN, twin of IANA-listed xn--kpry57d
 	"xn--mgbcpq6gpa1a": {"https://rdap.centralnic.com/xn--mgbcpq6gpa1a/"}, // Bahrain IDN
 	"xn--p1ai":         {"https://cctld.ru/tci-ripn-rdap/"},               // Cyrillic .rf
 }
