@@ -18,6 +18,28 @@ var update = flag.Bool("update", false, "update golden files")
 // goldenCases maps a frozen RDAP fixture to the domain it represents.
 var goldenCases = map[string]domain.Name{
 	"example.com.json": {ASCII: "example.com", Unicode: "example.com", TLD: "com"},
+	"vaduz.li.json":    {ASCII: "vaduz.li", Unicode: "vaduz.li", TLD: "li"}, // SWITCH: bare event dates, org-only registrar vcard
+}
+
+func TestParseEventDate(t *testing.T) {
+	cases := map[string]string{
+		"2021-03-09T14:30:00Z":      "2021-03-09T14:30:00Z",
+		"2021-03-09T14:30:00+02:00": "2021-03-09T12:30:00Z",
+		"2021-03-09T14:30:00":       "2021-03-09T14:30:00Z",
+		"1997-06-24":                "1997-06-24T00:00:00Z",
+		" 1997-06-24 ":              "1997-06-24T00:00:00Z",
+		"24.06.1997":                "",
+		"":                          "",
+	}
+	for in, want := range cases {
+		got := ""
+		if t2 := parseEventDate(in); !t2.IsZero() {
+			got = t2.UTC().Format(time.RFC3339)
+		}
+		if got != want {
+			t.Errorf("parseEventDate(%q) = %q, want %q", in, got, want)
+		}
+	}
 }
 
 func TestMapDomainGolden(t *testing.T) {
