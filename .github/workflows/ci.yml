@@ -24,9 +24,9 @@ jobs:
       docker: ${{ steps.filter.outputs.docker }}
       workflows: ${{ steps.filter.outputs.workflows }}
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🔎 Filter paths
+      - name: Filter paths
         id: filter
         uses: dorny/paths-filter@v3
         with:
@@ -50,13 +50,13 @@ jobs:
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: 🎨 Check gofmt
+      - name: Check gofmt
         run: |
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then
@@ -72,49 +72,49 @@ jobs:
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: 🔬 Run go vet
+      - name: Run go vet
         run: go vet ./...
 
   # staticcheck: the de-facto Go linter (bugs, simplifications, style).
   lint:
-    name: 🧹 Lint (staticcheck)
+    name: 🧼 Static check
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: 🧹 Run staticcheck
+      - name: Run staticcheck
         run: |
           go install honnef.co/go/tools/cmd/staticcheck@latest
           staticcheck ./...
 
   # go test with the race detector.
   test:
-    name: ✅ Test
+    name: 🧪 Test
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: ✅ Run tests
+      - name: Run tests
         run: go test -race -shuffle=on -coverprofile=coverage.out ./...
-      - name: 📊 Coverage summary
+      - name: Coverage summary
         run: go tool cover -func=coverage.out | tail -1
 
   # Ensure the whole module compiles.
@@ -124,29 +124,29 @@ jobs:
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: 🔨 Build all packages
+      - name: Build all packages
         run: go build ./...
 
   # go.mod / go.sum must be tidy.
   tidy:
-    name: 📦 Tidy
+    name: 🧹 Tidy
     needs: changes
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: 📦 Verify go mod tidy
+      - name: Verify go mod tidy
         run: |
           go mod tidy
           git diff --exit-code -- go.mod go.sum \
@@ -159,13 +159,13 @@ jobs:
     if: needs.changes.outputs.go == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🐹 Set up Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: 🛡️ Run govulncheck
+      - name: Run govulncheck
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
           govulncheck ./...
@@ -177,18 +177,18 @@ jobs:
     if: needs.changes.outputs.docker == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🔧 Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: 🔨 Build image
+      - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
           load: true
           tags: who-dat:ci
           provenance: false
-      - name: 💨 Smoke test
+      - name: Smoke test
         run: |
           docker run -d --name wd-ci -p 8080:8080 who-dat:ci
           for i in $(seq 1 20); do
@@ -212,9 +212,9 @@ jobs:
     if: needs.changes.outputs.workflows == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: 🤖 Run actionlint
+      - name: Run actionlint
         run: |
           bash <(curl --proto '=https' --tlsv1.2 -sSf \
             https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
@@ -225,11 +225,11 @@ jobs:
     name: 🔑 Secret Scan
     runs-on: ubuntu-latest
     steps:
-      - name: 🛎️ Checkout
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: 🔑 Run gitleaks
+      - name: Run gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
