@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/lissy93/who-dat/internal/domain"
 	"github.com/lissy93/who-dat/internal/srcerr"
@@ -28,6 +29,9 @@ type errorDetail struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Query   string `json:"query"`
+	Source  string `json:"source,omitempty"` // lookup backend that failed: "rdap" or "whois"
+	Server  string `json:"server,omitempty"` // upstream server queried, when known
+	Detail  string `json:"detail,omitempty"` // underlying error chain, for diagnostics
 }
 
 // writeError sends the standard error envelope with the given status.
@@ -45,22 +49,40 @@ func writeDomainError(w http.ResponseWriter, err error, query string) {
 	}
 }
 
-// writeLookupError maps an orchestrator/source error to the right status and envelope.
-func writeLookupError(w http.ResponseWriter, err error, query string) {
+// lookupError sorts a lookup failure into status + envelope, naming the failing
+// source, server, and underlying detail when known.
+func lookupError(err error, query string) (status int, retryAfter time.Duration, d errorDetail) {
+	d = errorDetail{Query: query, Detail: err.Error()}
+	var se *srcerr.SourceError
+	if errors.As(err, &se) {
+		d.Source, d.Server = se.Source, se.Server
+	}
+
 	var rl *srcerr.RateLimited
 	switch {
 	case errors.As(err, &rl):
-		if rl.RetryAfter > 0 {
-			w.Header().Set("Retry-After", strconv.Itoa(int(rl.RetryAfter.Seconds())))
-		}
-		writeError(w, http.StatusTooManyRequests, codeRateLimited, "rate limited; retry later", query)
+		d.Code, d.Message = codeRateLimited, "rate limited; retry later"
+		return http.StatusTooManyRequests, rl.RetryAfter, d
 	case errors.Is(err, srcerr.ErrTimeout), errors.Is(err, context.DeadlineExceeded):
-		writeError(w, http.StatusGatewayTimeout, codeUpstreamTimout, "registry timed out", query)
+		d.Code, d.Message = codeUpstreamTimout, "registry timed out"
+		return http.StatusGatewayTimeout, 0, d
 	case errors.Is(err, srcerr.ErrNoSource):
-		writeError(w, http.StatusNotImplemented, codeUnsupportedTLD, "no rdap or whois source for this tld", query)
+		d.Code, d.Message = codeUnsupportedTLD, "no rdap or whois source for this tld"
+		return http.StatusNotImplemented, 0, d
 	case errors.Is(err, srcerr.ErrUpstream):
-		writeError(w, http.StatusBadGateway, codeUpstreamError, "registry unreachable or returned an invalid response", query)
+		d.Code, d.Message = codeUpstreamError, "registry unreachable or returned an invalid response"
+		return http.StatusBadGateway, 0, d
 	default:
-		writeError(w, http.StatusInternalServerError, codeInternal, "internal error", query)
+		d.Code, d.Message, d.Detail = codeInternal, "internal error", "" // internals stay internal
+		return http.StatusInternalServerError, 0, d
 	}
+}
+
+// writeLookupError maps an orchestrator/source error to the right status and envelope.
+func writeLookupError(w http.ResponseWriter, err error, query string) {
+	status, retryAfter, d := lookupError(err, query)
+	if retryAfter > 0 {
+		w.Header().Set("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+	}
+	writeJSON(w, status, errorBody{Error: d})
 }

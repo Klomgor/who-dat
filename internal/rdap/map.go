@@ -13,7 +13,7 @@ import (
 
 // rdapDomain is the subset of an RFC 9083 domain object that we map.
 type rdapDomain struct {
-	Handle      string           `json:"handle"`
+	Handle      laxString        `json:"handle"`
 	LDHName     string           `json:"ldhName"`
 	UnicodeName string           `json:"unicodeName"`
 	Port43      string           `json:"port43"`
@@ -30,7 +30,7 @@ type rdapEvent struct {
 }
 
 type rdapEntity struct {
-	Handle    string         `json:"handle"`
+	Handle    laxString      `json:"handle"`
 	Roles     []string       `json:"roles"`
 	PublicIDs []rdapPublicID `json:"publicIds"`
 	VCard     vcard          `json:"vcardArray"`
@@ -38,9 +38,34 @@ type rdapEntity struct {
 	Links     []rdapLink     `json:"links"`
 }
 
+// TWNIC pads entities arrays with bare 404s; skip anything that is not an object.
+func (e *rdapEntity) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 || b[0] != '{' {
+		return nil
+	}
+	type plain rdapEntity
+	return json.Unmarshal(b, (*plain)(e))
+}
+
 type rdapPublicID struct {
-	Type       string `json:"type"`
-	Identifier string `json:"identifier"`
+	Type       string    `json:"type"`
+	Identifier laxString `json:"identifier"`
+}
+
+// laxString accepts both "1234" and 1234; some alpha-grade registries can't decide.
+type laxString string
+
+func (s *laxString) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '"' {
+		var v string
+		if err := json.Unmarshal(b, &v); err != nil {
+			return err
+		}
+		*s = laxString(v)
+	} else if string(b) != "null" {
+		*s = laxString(b)
+	}
+	return nil
 }
 
 type rdapLink struct {
@@ -75,7 +100,7 @@ func mapDomain(n domain.Name, server string, raw []byte) (*model.Result, error) 
 
 	r := model.New(n.ASCII, n.ASCII, n.TLD)
 	r.IsRegistered = true
-	r.ID = model.Str(d.Handle)
+	r.ID = model.Str(string(d.Handle))
 	r.Status = model.NormalizeStatuses(d.Status)
 	r.Meta = model.Meta{Source: model.SourceRDAP, Server: model.Str(server), FetchedAt: time.Now().UTC()}
 	r.Raw = raw
@@ -173,7 +198,7 @@ func mapRegistrar(r *model.Result, e rdapEntity) {
 	r.Registrar.Name = model.Str(e.VCard.fn)
 	for _, id := range e.PublicIDs {
 		if strings.Contains(strings.ToLower(id.Type), "iana") {
-			r.Registrar.IANAID = model.Str(id.Identifier)
+			r.Registrar.IANAID = model.Str(string(id.Identifier))
 		}
 	}
 	for _, l := range e.Links {

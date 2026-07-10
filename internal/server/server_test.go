@@ -3,8 +3,11 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/lissy93/who-dat/internal/config"
@@ -72,6 +75,57 @@ func TestLookupStatusCodes(t *testing.T) {
 				if body.Error.Code != tt.wantCode {
 					t.Errorf("error code = %q, want %q", body.Error.Code, tt.wantCode)
 				}
+			}
+		})
+	}
+}
+
+func TestLookupErrorEnvelope(t *testing.T) {
+	tests := []struct {
+		name                             string
+		rdapErr, whoisErr                error
+		wantStatus                       int
+		wantCode, wantSource, wantServer string
+		wantDetail                       string // substring; empty means detail must be empty
+	}{
+		{
+			name:     "source and server surface",
+			rdapErr:  &srcerr.SourceError{Source: model.SourceRDAP, Server: "https://rdap.nic.li", Err: fmt.Errorf("%w: no response", srcerr.ErrTimeout)},
+			whoisErr: srcerr.ErrNoSource, wantStatus: http.StatusGatewayTimeout, wantCode: codeUpstreamTimout,
+			wantSource: model.SourceRDAP, wantServer: "https://rdap.nic.li", wantDetail: "no response",
+		},
+		{
+			name:       "fallback explains missing rdap",
+			rdapErr:    srcerr.ErrNoSource,
+			whoisErr:   &srcerr.SourceError{Source: model.SourceWhois, Err: fmt.Errorf("%w: i/o timeout", srcerr.ErrTimeout)},
+			wantStatus: http.StatusGatewayTimeout, wantCode: codeUpstreamTimout,
+			wantSource: model.SourceWhois, wantDetail: "no rdap server registered for .com",
+		},
+		{
+			name: "internal errors keep quiet", rdapErr: errors.New("secret internals"),
+			whoisErr: srcerr.ErrNoSource, wantStatus: http.StatusInternalServerError, wantCode: codeInternal,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := lookup.NewService(&fakeSource{err: tt.rdapErr}, &fakeSource{err: tt.whoisErr}, nil)
+			rec := httptest.NewRecorder()
+			New(&config.Config{LookupTimeout: 2_000_000_000, MaxDomains: 5}, svc).
+				ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/whois/example.com", nil))
+
+			var body errorBody
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode: %v", err)
+			}
+			e := body.Error
+			if rec.Code != tt.wantStatus || e.Code != tt.wantCode {
+				t.Fatalf("status/code = %d/%q, want %d/%q", rec.Code, e.Code, tt.wantStatus, tt.wantCode)
+			}
+			if e.Source != tt.wantSource || e.Server != tt.wantServer {
+				t.Errorf("source/server = %q/%q, want %q/%q", e.Source, e.Server, tt.wantSource, tt.wantServer)
+			}
+			if !strings.Contains(e.Detail, tt.wantDetail) || (tt.wantDetail == "" && e.Detail != "") {
+				t.Errorf("detail = %q, want %q", e.Detail, tt.wantDetail)
 			}
 		})
 	}

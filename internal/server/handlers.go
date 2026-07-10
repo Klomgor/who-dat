@@ -81,7 +81,8 @@ func (s *server) handleMulti(w http.ResponseWriter, r *http.Request) {
 		}
 		res, err := s.svc.Lookup(ctx, n)
 		if err != nil {
-			results = append(results, multiError(q, "lookup failed"))
+			_, _, d := lookupError(err, q)
+			results = append(results, errorBody{Error: d})
 			cacheable = false
 			continue
 		}

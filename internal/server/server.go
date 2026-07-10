@@ -34,6 +34,7 @@ func Build(cfg *config.Config) http.Handler {
 			IdleConnTimeout:     90 * time.Second,
 			TLSHandshakeTimeout: 10 * time.Second,
 			TLSClientConfig:     rdap.TLSConfig(),
+			ForceAttemptHTTP2:   true, // custom TLS config turns h2 off; some registries demand it
 		},
 	}
 

@@ -4,6 +4,7 @@ package lookup
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/lissy93/who-dat/internal/cache"
 	"github.com/lissy93/who-dat/internal/domain"
@@ -43,7 +44,9 @@ func (s *Service) Lookup(ctx context.Context, n domain.Name) (*model.Result, err
 
 	r, err := s.rdap.Lookup(ctx, n)
 	if errors.Is(err, srcerr.ErrNoSource) {
-		r, err = s.whois.Lookup(ctx, n)
+		if r, err = s.whois.Lookup(ctx, n); err != nil {
+			err = fmt.Errorf("no rdap server registered for .%s; fell back to %w", n.TLD, err)
+		}
 	}
 	if err != nil {
 		return nil, err
