@@ -36,6 +36,7 @@ type rdapEntity struct {
 	VCard     vcard          `json:"vcardArray"`
 	Entities  []rdapEntity   `json:"entities"`
 	Links     []rdapLink     `json:"links"`
+	URL       string         `json:"url"` // nonstandard, but SWITCH puts the registrar URL here
 }
 
 // TWNIC pads entities arrays with bare 404s; skip anything that is not an object.
@@ -121,10 +122,25 @@ func mapDomain(n domain.Name, server string, raw []byte) (*model.Result, error) 
 	return r, nil
 }
 
+// eventDateLayouts covers what registries actually emit: RFC 9083 mandates RFC 3339,
+// but some (e.g. SWITCH for .ch/.li) send zoneless timestamps or bare dates.
+var eventDateLayouts = []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02"}
+
+// parseEventDate parses an RDAP event date leniently; zero time means unparseable.
+func parseEventDate(s string) time.Time {
+	s = strings.TrimSpace(s)
+	for _, layout := range eventDateLayouts {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 func mapEvents(r *model.Result, events []rdapEvent) {
 	for _, e := range events {
-		t, err := time.Parse(time.RFC3339, e.Date)
-		if err != nil {
+		t := parseEventDate(e.Date)
+		if t.IsZero() {
 			continue
 		}
 		switch strings.ToLower(e.Action) {
@@ -195,7 +211,7 @@ func mapEntities(r *model.Result, entities []rdapEntity) {
 }
 
 func mapRegistrar(r *model.Result, e rdapEntity) {
-	r.Registrar.Name = model.Str(e.VCard.fn)
+	r.Registrar.Name = model.Str(e.VCard.name())
 	for _, id := range e.PublicIDs {
 		if strings.Contains(strings.ToLower(id.Type), "iana") {
 			r.Registrar.IANAID = model.Str(string(id.Identifier))
@@ -205,6 +221,9 @@ func mapRegistrar(r *model.Result, e rdapEntity) {
 		if strings.EqualFold(l.Rel, "about") || (r.Registrar.URL == nil && strings.HasPrefix(l.Href, "http")) {
 			r.Registrar.URL = model.Str(l.Href)
 		}
+	}
+	if r.Registrar.URL == nil && strings.HasPrefix(e.URL, "http") {
+		r.Registrar.URL = model.Str(e.URL)
 	}
 	for _, sub := range e.Entities {
 		for _, role := range sub.Roles {

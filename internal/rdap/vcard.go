@@ -56,6 +56,14 @@ func (v *vcard) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// name returns the display name, falling back to org when fn is absent (e.g. SWITCH).
+func (v *vcard) name() string {
+	if v.fn != "" {
+		return v.fn
+	}
+	return v.org
+}
+
 // address maps the jCard ADR components onto the model address.
 func (v *vcard) address() model.Address {
 	at := func(i int) *string {
