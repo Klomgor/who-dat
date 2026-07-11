@@ -5,12 +5,12 @@ go 1.25.0
 toolchain go1.26.5
 
 require (
-	github.com/likexian/whois v1.15.6
-	github.com/likexian/whois-parser v1.24.20
+	github.com/likexian/whois v1.15.7
+	github.com/likexian/whois-parser v1.24.21
 	golang.org/x/net v0.55.0
 )
 
 require (
-	github.com/likexian/gokit v0.25.15 // indirect
+	github.com/likexian/gokit v0.25.16 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
