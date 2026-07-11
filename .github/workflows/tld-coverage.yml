@@ -1,6 +1,8 @@
 name: 🌍 TLD Coverage Report
 
 on:
+  schedule:
+    - cron: '0 1 * * 6' # Saturdays 01:00 UTC
   workflow_dispatch:
     inputs:
       workers:
@@ -48,11 +50,11 @@ jobs:
       - name: 🌍 Run TLD coverage check
         run: |
           go run ./cmd/tldcheck \
-            -workers "${{ inputs.workers }}" \
-            -timeout "${{ inputs.timeout }}" \
-            -cooldown "${{ inputs.cooldown }}" \
-            -limit "${{ inputs.limit }}" \
-            -recover="${{ inputs.recover }}" \
+            -workers "${{ inputs.workers || '6' }}" \
+            -timeout "${{ inputs.timeout || '20s' }}" \
+            -cooldown "${{ inputs.cooldown || '20s' }}" \
+            -limit "${{ inputs.limit || '0' }}" \
+            -recover="${{ inputs.recover || 'false' }}" \
             -md tld-coverage.md \
             -json tld-coverage.json
 
