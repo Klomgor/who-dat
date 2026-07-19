@@ -9,11 +9,13 @@ updates:
       day: saturday
       time: "08:00"
       timezone: Europe/London
+    open-pull-requests-limit: 10
     groups:
-      gomod-patch:
+      gomod:
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
     commit-message:
       prefix: chore(deps)
@@ -26,12 +28,11 @@ updates:
       day: saturday
       time: "08:00"
       timezone: Europe/London
+    open-pull-requests-limit: 10
     groups:
-      actions-patch:
+      github-actions:
         patterns:
           - "*"
-        update-types:
-          - patch
     commit-message:
       prefix: chore(ci)
 
@@ -43,11 +44,13 @@ updates:
       day: saturday
       time: "08:00"
       timezone: Europe/London
+    open-pull-requests-limit: 10
     groups:
-      docker-patch:
+      docker:
         patterns:
           - "*"
         update-types:
+          - minor
           - patch
     commit-message:
       prefix: chore(docker)
