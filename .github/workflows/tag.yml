@@ -65,7 +65,7 @@ jobs:
       - name: 📂 Check PR for code changes
         id: check_pr
         if: env.IS_MANUAL != 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -86,7 +86,7 @@ jobs:
 
       - name: 🛎️ Checkout repository
         if: env.IS_MANUAL == 'true' || steps.check_pr.outputs.needs_tag == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.BOT_TOKEN || secrets.GITHUB_TOKEN }}
